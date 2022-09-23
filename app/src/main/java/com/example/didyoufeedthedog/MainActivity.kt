@@ -16,6 +16,17 @@ import androidx.compose.ui.unit.dp
 import com.example.didyoufeedthedog.ui.theme.DidYouFeedTheDogTheme
 import java.text.DateFormat
 import java.util.*
+import androidx.compose.material.Scaffold
+import androidx.navigation.NavController
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.didyoufeedthedog.DogDestination
+import androidx.compose.runtime.getValue
+
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -84,47 +95,73 @@ fun Feedings() {
 }
 
 @Composable
-private fun BottomNavigation(modifier: Modifier = Modifier) {
+private fun BottomNavigation(
+    allScreens: List<DogDestination>,
+    onTabSelected: (DogDestination) -> Unit,
+    currentScreen: DogDestination,
+    modifier: Modifier = Modifier
+) {
     BottomNavigation(modifier) {
-        BottomNavigationItem(
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = null
-                )
-            },
-            label = {
-                Text("Home")
-            },
-            selected = true,
-            onClick = {}
-        )
-        BottomNavigationItem(
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.List,
-                    contentDescription = null
-                )
-            },
-            label = {
-                Text("History")
-            },
-            selected = false,
-            onClick = {}
-        )
+        allScreens.forEach { screen ->
+            BottomNavigationItem(
+                icon = {
+                    Icon(
+                        imageVector = screen.icon,
+                        contentDescription = null
+                    )
+                },
+                label = { Text(screen.label) },
+                selected = currentScreen == screen,
+                onClick = {
+                    onTabSelected(screen)
+                }
+
+            )
+        }
     }
 }
 
 @Composable
 fun DidYouFeedTheDogApp() {
     DidYouFeedTheDogTheme {
+        val navController = rememberNavController()
+        // These are needing to highlight the correct tab in the bottom navigation.
+        val currentBackStack by navController.currentBackStackEntryAsState()
+        // Fetch your currentDestination:
+        val currentDestination = currentBackStack?.destination
+        // Change the variable to this and use Overview as a backup screen if this returns null
+        val currentScreen = dogTabRowScreens.find { it.route == currentDestination?.route } ?: Home
         Scaffold(
-            bottomBar = { BottomNavigation() }
-        ) {
-            Greeting()
+            bottomBar = {
+                BottomNavigation(
+                    allScreens = dogTabRowScreens,
+                    onTabSelected = { newScreen ->
+                        navController.navigateSingleTopTo(newScreen.route)
+                    },
+                    currentScreen = currentScreen
+                )
+            }
+        ) { innerPadding ->
+            NavHost(
+                navController = navController,
+                startDestination = Home.route,
+                modifier = Modifier.padding(innerPadding)
+            ) {
+                composable(route = Home.route) {
+                    Greeting()
+                }
+                composable(route = Feedings.route) {
+                    Feedings()
+                }
+            }
         }
     }
 }
+
+// This version of the navigate() function ensures that there aren't multiple copies of the same
+// page in the stack trace if you click the same tab multiple times in a row.
+fun NavHostController.navigateSingleTopTo(route: String) =
+    this.navigate(route) { launchSingleTop = true }
 
 @Preview(showBackground = true, widthDp = 320, heightDp = 320)
 @Composable
@@ -146,7 +183,11 @@ fun FeedingsPreview() {
 @Composable
 fun BottomNavigationPreview() {
     DidYouFeedTheDogTheme {
-        BottomNavigation()
+        BottomNavigation(
+            allScreens = dogTabRowScreens,
+            onTabSelected = {},
+            currentScreen = Home
+        )
     }
 }
 
