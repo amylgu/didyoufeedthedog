@@ -46,7 +46,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Greeting() {
+fun Greeting(
+    onButtonSelected: () -> Unit
+) {
     val time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date())
     val date = DateFormat.getDateInstance().format(Date())
     Column(
@@ -57,7 +59,9 @@ fun Greeting() {
         Text(text = "It's $time on $date.")
         Text(text = "Did you feed the dog?")
         Button(
-            onClick = {}
+            onClick = {
+                onButtonSelected()
+            }
         ) {
             Text("I fed the dog!")
         }
@@ -65,20 +69,22 @@ fun Greeting() {
 }
 
 @Composable
-fun Feeding(time: String, date: String) {
+fun Feeding(feedingText: String) {
     Surface(
         color = MaterialTheme.colors.primary,
         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
         Row (modifier = Modifier.padding(24.dp)) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = "Dog fed at $time on $date.")
+                Text(feedingText)
             }
         }
     }
 }
 
 @Composable
-fun Feedings() {
+fun Feedings(
+    feedingTextList: MutableList<String>
+) {
     Column(
         modifier = Modifier.padding(vertical = 4.dp)
     ) {
@@ -86,11 +92,9 @@ fun Feedings() {
             "Last five feedings:",
             modifier = Modifier.padding(all = 10.dp)
         )
-        Feeding("8:00 AM", "Jul 21, 2022")
-        Feeding("12:05 PM", "Jul 21, 2022")
-        Feeding("12:05 PM", "Jul 21, 2022")
-        Feeding("12:05 PM", "Jul 21, 2022")
-        Feeding("12:05 PM", "Jul 21, 2022")
+        feedingTextList.forEach {feedingText ->
+            Feeding(feedingText)
+        }
     }
 }
 
@@ -121,6 +125,8 @@ private fun BottomNavigation(
     }
 }
 
+var feedingTextList = mutableListOf<String>()
+
 @Composable
 fun DidYouFeedTheDogApp() {
     DidYouFeedTheDogTheme {
@@ -131,6 +137,7 @@ fun DidYouFeedTheDogApp() {
         val currentDestination = currentBackStack?.destination
         // Change the variable to this and use Overview as a backup screen if this returns null
         val currentScreen = dogTabRowScreens.find { it.route == currentDestination?.route } ?: Home
+
         Scaffold(
             bottomBar = {
                 BottomNavigation(
@@ -148,14 +155,30 @@ fun DidYouFeedTheDogApp() {
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable(route = Home.route) {
-                    Greeting()
+                    Greeting(onButtonSelected = {
+                        // Increment feedings
+                        addFeeding(feedingTextList)
+                        // Navigate to feeding log page
+                        navController.navigateSingleTopTo(Feedings.route)
+                    })
                 }
                 composable(route = Feedings.route) {
-                    Feedings()
+                    Feedings(feedingTextList)
                 }
             }
         }
     }
+}
+
+// Returns the text associated with the last five feedings
+fun addFeeding(
+    feedings: MutableList<String>
+) {
+    val time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date())
+    val date = DateFormat.getDateInstance().format(Date())
+
+    feedings.add(0, "Dog fed at $time on $date")
+    if (feedings.size > 5) { feedings.removeAt(feedings.size - 1) }
 }
 
 // This version of the navigate() function ensures that there aren't multiple copies of the same
@@ -167,7 +190,7 @@ fun NavHostController.navigateSingleTopTo(route: String) =
 @Composable
 fun DefaultPreview() {
     DidYouFeedTheDogTheme {
-        Greeting()
+        Greeting(onButtonSelected = {})
     }
 }
 
@@ -175,7 +198,7 @@ fun DefaultPreview() {
 @Composable
 fun FeedingsPreview() {
     DidYouFeedTheDogTheme {
-        Feedings()
+        Feedings(mutableListOf())
     }
 }
 
