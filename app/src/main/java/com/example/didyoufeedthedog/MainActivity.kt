@@ -1,8 +1,11 @@
 package com.example.didyoufeedthedog
 
+import android.app.Application
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -25,12 +28,21 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.didyoufeedthedog.DogDestination
 import androidx.compose.runtime.getValue
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
-
+lateinit var context: Context
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        context = applicationContext
+
         setContent {
             DidYouFeedTheDogTheme {
                 // A surface container using the 'background' color from the theme
@@ -43,6 +55,24 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun saveState() {
+        runBlocking {
+            val viewModel by viewModels<FeedingsViewModel>()
+            applicationContext.dataStore.edit { feedings ->
+                feedings[stringSetPreferencesKey("feedings")] = viewModel.state.feedings.toSet()
+            }
+        }
+    }
+    override fun onStop() {
+        saveState()
+        super.onStop()
+    }
+    override fun onDestroy() {
+        saveState()
+        super.onDestroy()
+    }
+
 }
 
 @Composable
@@ -125,18 +155,19 @@ private fun BottomNavigation(
     }
 }
 
-var feedingTextList = mutableListOf<String>()
-
 @Composable
 fun DidYouFeedTheDogApp() {
     DidYouFeedTheDogTheme {
         val navController = rememberNavController()
-        // These are needing to highlight the correct tab in the bottom navigation.
+        // These are needed to highlight the correct tab in the bottom navigation.
         val currentBackStack by navController.currentBackStackEntryAsState()
         // Fetch your currentDestination:
         val currentDestination = currentBackStack?.destination
         // Change the variable to this and use Overview as a backup screen if this returns null
         val currentScreen = dogTabRowScreens.find { it.route == currentDestination?.route } ?: Home
+
+        val viewModel = viewModel<FeedingsViewModel>()
+        val state = viewModel.state
 
         Scaffold(
             bottomBar = {
@@ -157,28 +188,19 @@ fun DidYouFeedTheDogApp() {
                 composable(route = Home.route) {
                     Greeting(onButtonSelected = {
                         // Increment feedings
-                        addFeeding(feedingTextList)
+                        viewModel.viewModelScope.launch {
+                            viewModel.addFeeding(context, state.feedings)
+                        }
                         // Navigate to feeding log page
                         navController.navigateSingleTopTo(Feedings.route)
                     })
                 }
                 composable(route = Feedings.route) {
-                    Feedings(feedingTextList)
+                    Feedings(state.feedings)
                 }
             }
         }
     }
-}
-
-// Returns the text associated with the last five feedings
-fun addFeeding(
-    feedings: MutableList<String>
-) {
-    val time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date())
-    val date = DateFormat.getDateInstance().format(Date())
-
-    feedings.add(0, "Dog fed at $time on $date")
-    if (feedings.size > 5) { feedings.removeAt(feedings.size - 1) }
 }
 
 // This version of the navigate() function ensures that there aren't multiple copies of the same
