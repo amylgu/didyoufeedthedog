@@ -3,6 +3,7 @@ package com.example.didyoufeedthedog
 import android.app.Application
 import android.content.Context
 import android.os.Bundle
+import android.widget.TextClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -28,6 +29,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.didyoufeedthedog.DogDestination
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -79,14 +82,16 @@ class MainActivity : ComponentActivity() {
 fun Greeting(
     onButtonSelected: () -> Unit
 ) {
-    val time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date())
+    //val time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date())
     val date = DateFormat.getDateInstance().format(Date())
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text = "It's $time on $date.")
+        Text(text = "It's")
+        displayTextClock()
+        Text(text = "on $date", modifier = Modifier.padding(bottom = 20.dp))
         Text(text = "Did you feed the dog?")
         Button(
             onClick = {
@@ -96,6 +101,22 @@ fun Greeting(
             Text("I fed the dog!")
         }
     }
+}
+
+@Composable
+fun displayTextClock() {
+    AndroidView(
+        factory = { context ->
+            TextClock(context).apply {
+                // on below line we are setting 12 hour format.
+                format12Hour?.let { this.format12Hour = "hh:mm a" }
+                // on below line we are setting time zone.
+                timeZone?.let { this.timeZone = it }
+                // on below line we are setting text size.
+                textSize.let { this.textSize = 30f }
+            }
+        }
+    )
 }
 
 @Composable
