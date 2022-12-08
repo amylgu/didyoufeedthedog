@@ -1,17 +1,15 @@
 package com.example.didyoufeedthedog
 
-import android.app.Application
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.widget.TextClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,18 +19,16 @@ import com.example.didyoufeedthedog.ui.theme.DidYouFeedTheDogTheme
 import java.text.DateFormat
 import java.util.*
 import androidx.compose.material.Scaffold
-import androidx.navigation.NavController
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.didyoufeedthedog.DogDestination
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -40,9 +36,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 lateinit var context: Context
+private const val TAG = "MainActivity"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        Log.d(TAG, "onCreate() called")
         super.onCreate(savedInstanceState)
         context = applicationContext
 
@@ -60,6 +58,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun saveState() {
+        Log.d(TAG, "saveState() called")
         runBlocking {
             val viewModel by viewModels<FeedingsViewModel>()
             applicationContext.dataStore.edit { feedings ->
@@ -68,21 +67,19 @@ class MainActivity : ComponentActivity() {
         }
     }
     override fun onStop() {
+        Log.d(TAG, "onStop() called")
         saveState()
         super.onStop()
     }
     override fun onDestroy() {
+        Log.d(TAG, "onDestroy() called")
         saveState()
         super.onDestroy()
     }
-
 }
 
 @Composable
-fun Greeting(
-    onButtonSelected: () -> Unit
-) {
-    //val time = DateFormat.getTimeInstance(DateFormat.SHORT).format(Date())
+fun Greeting(onButtonSelected: () -> Unit) {
     val date = DateFormat.getDateInstance().format(Date())
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -120,7 +117,10 @@ fun displayTextClock() {
 }
 
 @Composable
-fun Feeding(feedingText: String) {
+fun Feeding(
+    feedingText: String,
+    onTrashSelected: (feedingText: String) -> Unit
+) {
     Surface(
         color = MaterialTheme.colors.primary,
         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
@@ -128,13 +128,22 @@ fun Feeding(feedingText: String) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(feedingText)
             }
+            Icon(
+                imageVector = Icons.Filled.Delete, contentDescription = "Delete",
+                modifier = Modifier.clickable {
+                    onTrashSelected(feedingText)
+                }
+            )
         }
     }
 }
 
 @Composable
+// Move to own file?
 fun Feedings(
-    feedingTextList: MutableList<String>
+    feedingTextList: MutableList<String>,
+    state: MyAppState,
+    viewModel: FeedingsViewModel
 ) {
     Column(
         modifier = Modifier.padding(vertical = 4.dp)
@@ -144,7 +153,14 @@ fun Feedings(
             modifier = Modifier.padding(all = 10.dp)
         )
         feedingTextList.forEach {feedingText ->
-            Feeding(feedingText)
+            Feeding(
+                feedingText,
+                onTrashSelected = {
+                    viewModel.viewModelScope.launch {
+                        viewModel.removeFeeding(state.feedings, feedingText)
+                    }
+                }
+            )
         }
     }
 }
@@ -211,13 +227,14 @@ fun DidYouFeedTheDogApp() {
                         // Increment feedings
                         viewModel.viewModelScope.launch {
                             viewModel.addFeeding(context, state.feedings)
+                            //viewModel.removeFeeding(state.feedings)
                         }
                         // Navigate to feeding log page
                         navController.navigateSingleTopTo(Feedings.route)
                     })
                 }
                 composable(route = Feedings.route) {
-                    Feedings(state.feedings)
+                    Feedings(state.feedings, state, viewModel)
                 }
             }
         }
@@ -237,13 +254,13 @@ fun DefaultPreview() {
     }
 }
 
-@Preview(showBackground = true, widthDp = 320, heightDp = 620)
-@Composable
-fun FeedingsPreview() {
-    DidYouFeedTheDogTheme {
-        Feedings(mutableListOf())
-    }
-}
+//@Preview(showBackground = true, widthDp = 320, heightDp = 620)
+//@Composable
+//fun FeedingsPreview() {
+//    DidYouFeedTheDogTheme {
+//        Feedings(mutableListOf())
+//    }
+//}
 
 @Preview(showBackground = true)
 @Composable
