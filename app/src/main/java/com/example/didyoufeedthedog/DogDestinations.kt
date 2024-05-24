@@ -23,5 +23,5 @@ object Feedings : DogDestination {
     override val label = "Feedings"
 }
 
-// List of screens used in the process of determining the current screen
+// List of screens used in the process of determining the current screen.
 val dogTabRowScreens = listOf(Home, Feedings)

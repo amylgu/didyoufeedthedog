@@ -34,13 +34,16 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 lateinit var context: Context
-private const val TAG = "MainActivity"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        Log.d(TAG, "onCreate() called")
         super.onCreate(savedInstanceState)
         context = applicationContext
 
@@ -58,7 +61,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun saveState() {
-        Log.d(TAG, "saveState() called")
         runBlocking {
             val viewModel by viewModels<FeedingsViewModel>()
             applicationContext.dataStore.edit { feedings ->
@@ -67,12 +69,10 @@ class MainActivity : ComponentActivity() {
         }
     }
     override fun onStop() {
-        Log.d(TAG, "onStop() called")
         saveState()
         super.onStop()
     }
     override fun onDestroy() {
-        Log.d(TAG, "onDestroy() called")
         saveState()
         super.onDestroy()
     }
@@ -119,27 +119,38 @@ fun displayTextClock() {
 @Composable
 fun Feeding(
     feedingText: String,
-    onTrashSelected: (feedingText: String) -> Unit
+    onTrashSelected: () -> Unit
 ) {
+    var showItem by remember { mutableStateOf(true) }
+
     Surface(
         color = MaterialTheme.colors.primary,
         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-        Row (modifier = Modifier.padding(24.dp)) {
-            Column(modifier = Modifier.weight(1f)) {
+
+        if (showItem) {
+            Row (
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth()
+            ) {
                 Text(feedingText)
-            }
-            Icon(
-                imageVector = Icons.Filled.Delete, contentDescription = "Delete",
-                modifier = Modifier.clickable {
-                    onTrashSelected(feedingText)
+                IconButton(onClick = {
+                    onTrashSelected()
+                    showItem = false
+                }) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "Delete"
+                    )
                 }
-            )
+            }
         }
     }
 }
 
 @Composable
-// Move to own file?
 fun Feedings(
     feedingTextList: MutableList<String>,
     state: MyAppState,
@@ -159,6 +170,10 @@ fun Feedings(
                     viewModel.viewModelScope.launch {
                         viewModel.removeFeeding(state.feedings, feedingText)
                     }
+                    // Navigate to feeding log page (to force refresh the list).
+                    // Need to figure out how to automatically update without re-loading page.
+                    // Adding this causes ANR? :(
+                    //navController.navigateSingleTopTo(Feedings.route)
                 }
             )
         }
@@ -224,12 +239,11 @@ fun DidYouFeedTheDogApp() {
             ) {
                 composable(route = Home.route) {
                     Greeting(onButtonSelected = {
-                        // Increment feedings
+                        // Increment feedings.
                         viewModel.viewModelScope.launch {
                             viewModel.addFeeding(context, state.feedings)
-                            //viewModel.removeFeeding(state.feedings)
                         }
-                        // Navigate to feeding log page
+                        // Navigate to feeding log page.
                         navController.navigateSingleTopTo(Feedings.route)
                     })
                 }
@@ -254,13 +268,16 @@ fun DefaultPreview() {
     }
 }
 
-//@Preview(showBackground = true, widthDp = 320, heightDp = 620)
-//@Composable
-//fun FeedingsPreview() {
-//    DidYouFeedTheDogTheme {
-//        Feedings(mutableListOf())
-//    }
-//}
+@Preview(showBackground = true, widthDp = 320, heightDp = 90)
+@Composable
+fun FeedingPreview() {
+    DidYouFeedTheDogTheme {
+        Feeding(
+            "<Date and time>",
+            onTrashSelected = {}
+            )
+    }
+}
 
 @Preview(showBackground = true)
 @Composable
@@ -271,13 +288,5 @@ fun BottomNavigationPreview() {
             onTabSelected = {},
             currentScreen = Home
         )
-    }
-}
-
-@Preview(showBackground = true, widthDp = 320, heightDp = 620)
-@Composable
-fun DidYouFeedTheDogAppPreview() {
-    DidYouFeedTheDogTheme {
-        DidYouFeedTheDogApp()
     }
 }
